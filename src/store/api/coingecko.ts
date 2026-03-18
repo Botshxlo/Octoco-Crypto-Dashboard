@@ -1,11 +1,32 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import {
+  createApi,
+  fetchBaseQuery,
+  retry,
+} from "@reduxjs/toolkit/query/react";
 import type { CoinMarket, CoinDetail, MarketChartData } from "@/types";
+
+// Custom baseQuery with retry + backoff that respects 429s
+const baseQueryWithRetry = retry(
+  async (args, api, extraOptions) => {
+    const result = await fetchBaseQuery({
+      baseUrl: "https://api.coingecko.com/api/v3",
+    })(args, api, extraOptions);
+
+    // Don't retry on rate limit — bail immediately
+    if (result.error && result.error.status === 429) {
+      retry.fail(result.error);
+    }
+
+    return result;
+  },
+  { maxRetries: 1 }
+);
 
 export const coingeckoApi = createApi({
   reducerPath: "coingeckoApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: "https://api.coingecko.com/api/v3",
-  }),
+  baseQuery: baseQueryWithRetry,
+  // Cache results for 2 minutes to reduce API calls
+  keepUnusedDataFor: 120,
   endpoints: (builder) => ({
     getMarkets: builder.query<
       CoinMarket[],

@@ -14,10 +14,17 @@ export default function Dashboard() {
   const [hasMore, setHasMore] = useState(true);
   const prevCurrency = useRef(currency);
 
-  const { data, isLoading, isFetching, error } = useGetMarketsQuery(
+  const { data, isLoading, isFetching, error, isError } = useGetMarketsQuery(
     { currency, page, perPage: PER_PAGE },
-    { pollingInterval: 60000 }
+    { pollingInterval: 120000 } // 2 min to stay within free tier rate limits
   );
+
+  // Stop trying to load more if we hit a rate limit
+  useEffect(() => {
+    if (isError) {
+      setHasMore(false);
+    }
+  }, [isError]);
 
   // Reset when currency changes
   useEffect(() => {
