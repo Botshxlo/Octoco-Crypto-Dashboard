@@ -10,6 +10,13 @@ const baseQueryWithRetry = retry(
   async (args, api, extraOptions) => {
     const result = await fetchBaseQuery({
       baseUrl: "https://api.coingecko.com/api/v3",
+      prepareHeaders: (headers) => {
+        const apiKey = import.meta.env.VITE_COINGECKO_API_KEY;
+        if (apiKey) {
+          headers.set("x-cg-demo-api-key", apiKey);
+        }
+        return headers;
+      },
     })(args, api, extraOptions);
 
     // Don't retry on rate limit — bail immediately

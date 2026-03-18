@@ -16,7 +16,7 @@ export default function Dashboard() {
 
   const { data, isLoading, isFetching, error, isError } = useGetMarketsQuery(
     { currency, page, perPage: PER_PAGE },
-    { pollingInterval: 120000 } // 2 min to stay within free tier rate limits
+    { pollingInterval: 60000 }
   );
 
   // Stop trying to load more if we hit a rate limit
