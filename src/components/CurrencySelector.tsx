@@ -10,24 +10,27 @@ const currencies: { value: Currency; label: string }[] = [
   { value: "btc", label: "BTC" },
 ];
 
-export default function CurrencySelector() {
+export default function CurrencySelector({ className }: { className?: string }) {
   const dispatch = useAppDispatch();
   const selected = useAppSelector((state) => state.currency.selected);
 
   return (
-    <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
+    <div className={cn("rounded-xl bg-secondary/80 p-1 flex", className)}>
       {currencies.map((c) => (
         <button
           key={c.value}
           onClick={() => dispatch(setCurrency(c.value))}
           className={cn(
-            "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+            "relative rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200",
             selected === c.value
-              ? "bg-background text-foreground shadow-sm"
+              ? "text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {c.label}
+          {selected === c.value && (
+            <span className="absolute inset-0 rounded-lg bg-primary shadow-lg shadow-primary/25" />
+          )}
+          <span className="relative">{c.label}</span>
         </button>
       ))}
     </div>
