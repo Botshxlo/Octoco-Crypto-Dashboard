@@ -11,6 +11,7 @@ export default function Dashboard() {
   const currency = useAppSelector((state) => state.currency.selected);
   const [page, setPage] = useState(1);
   const [allCoins, setAllCoins] = useState<CoinMarket[]>([]);
+  const [hasMore, setHasMore] = useState(true);
   const prevCurrency = useRef(currency);
 
   const { data, isLoading, isFetching, error } = useGetMarketsQuery(
@@ -18,32 +19,37 @@ export default function Dashboard() {
     { pollingInterval: 60000 }
   );
 
+  // Reset when currency changes
   useEffect(() => {
     if (prevCurrency.current !== currency) {
       setAllCoins([]);
       setPage(1);
+      setHasMore(true);
       prevCurrency.current = currency;
     }
   }, [currency]);
 
+  // Accumulate coins when data arrives
   useEffect(() => {
-    if (data) {
-      setAllCoins((prev) => {
-        if (page === 1) return data;
-        const existingIds = new Set(prev.map((c) => c.id));
-        const newCoins = data.filter((c) => !existingIds.has(c.id));
-        return [...prev, ...newCoins];
-      });
+    if (!data) return;
+
+    if (data.length < PER_PAGE) {
+      setHasMore(false);
     }
+
+    setAllCoins((prev) => {
+      if (page === 1) return data;
+      const existingIds = new Set(prev.map((c) => c.id));
+      const newCoins = data.filter((c) => !existingIds.has(c.id));
+      return [...prev, ...newCoins];
+    });
   }, [data, page]);
 
-  const hasMore = data?.length === PER_PAGE;
-
   const loadMore = useCallback(() => {
-    if (!isFetching) {
+    if (!isFetching && hasMore) {
       setPage((p) => p + 1);
     }
-  }, [isFetching]);
+  }, [isFetching, hasMore]);
 
   const sentinelRef = useInfiniteScroll(loadMore, hasMore);
 
