@@ -1,78 +1,98 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import {
-  useGetMarketsQuery,
-  useLazyGetMarketsQuery,
-} from "@/store/api/coingecko";
+import { useState, useEffect, useRef } from "react";
+import { useGetMarketsQuery } from "@/store/api/coingecko";
 import { useAppSelector } from "@/store/hooks";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import CoinTable from "@/components/CoinTable";
 import type { CoinMarket } from "@/types";
 
 const PER_PAGE = 100;
+const API_BASE = "https://api.coingecko.com/api/v3";
 
 export default function Dashboard() {
   const currency = useAppSelector((state) => state.currency.selected);
   const [extraCoins, setExtraCoins] = useState<CoinMarket[]>([]);
   const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const pageRef = useRef(1);
-  const loadingRef = useRef(false);
-  const prevCurrency = useRef(currency);
 
-  // Page 1: stable query with polling — never disrupted
+  // Page 1 only — stable RTK Query with polling
   const { data: firstPage, isLoading, error } = useGetMarketsQuery(
     { currency, page: 1, perPage: PER_PAGE },
     { pollingInterval: 60000 }
   );
 
-  // Lazy trigger for subsequent pages
-  const [fetchMore] = useLazyGetMarketsQuery();
-
-  // Reset when currency changes
+  // Reset extra pages when currency changes
   useEffect(() => {
-    if (prevCurrency.current !== currency) {
-      setExtraCoins([]);
-      pageRef.current = 1;
-      setHasMore(true);
-      prevCurrency.current = currency;
-    }
+    setExtraCoins([]);
+    pageRef.current = 1;
+    setHasMore(true);
   }, [currency]);
 
-  // Stable callback — uses refs so identity never changes
-  const loadMore = useCallback(async () => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
+  // Scroll-based infinite loading
+  useEffect(() => {
+    if (!hasMore) return;
+
+    const handleScroll = () => {
+      if (loadingMore) return;
+      const scrollBottom =
+        window.innerHeight + document.documentElement.scrollTop;
+      const docHeight = document.documentElement.offsetHeight;
+
+      if (docHeight - scrollBottom < 300) {
+        fetchNextPage();
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  });
+
+  async function fetchNextPage() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
 
     const nextPage = pageRef.current + 1;
+    const apiKey = import.meta.env.VITE_COINGECKO_API_KEY;
 
     try {
-      const result = await fetchMore({
-        currency: prevCurrency.current,
-        page: nextPage,
-        perPage: PER_PAGE,
-      }).unwrap();
+      const headers: Record<string, string> = {};
+      if (apiKey) headers["x-cg-demo-api-key"] = apiKey;
 
-      if (result.length < PER_PAGE) {
+      const res = await fetch(
+        `${API_BASE}/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=${PER_PAGE}&page=${nextPage}&sparkline=false`,
+        { headers }
+      );
+
+      if (!res.ok) {
+        setHasMore(false);
+        return;
+      }
+
+      const data: CoinMarket[] = await res.json();
+
+      if (data.length < PER_PAGE) {
         setHasMore(false);
       }
 
-      setExtraCoins((prev) => {
-        const existingIds = new Set(prev.map((c) => c.id));
-        const newCoins = result.filter((c) => !existingIds.has(c.id));
-        return [...prev, ...newCoins];
-      });
-
+      setExtraCoins((prev) => [...prev, ...data]);
       pageRef.current = nextPage;
     } catch {
       setHasMore(false);
     } finally {
-      loadingRef.current = false;
+      setLoadingMore(false);
     }
-  }, [fetchMore]);
+  }
 
-  const sentinelRef = useInfiniteScroll(loadMore, hasMore);
-
-  // Combine page 1 (always fresh from polling) + extra pages
-  const allCoins = [...(firstPage ?? []), ...extraCoins];
+  // Deduplicate: firstPage wins, extra coins fill in the rest
+  const allCoins = (() => {
+    const first = firstPage ?? [];
+    const seen = new Set(first.map((c) => c.id));
+    const deduped = extraCoins.filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+    return [...first, ...deduped];
+  })();
 
   if (isLoading) {
     return (
@@ -108,8 +128,14 @@ export default function Dashboard() {
       </div>
       <CoinTable coins={allCoins} currency={currency} />
       {hasMore && (
-        <div ref={sentinelRef} className="py-8 text-center">
-          <div className="text-sm text-muted-foreground">Loading more...</div>
+        <div className="py-8 text-center">
+          {loadingMore && (
+            <div className="animate-pulse space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 bg-secondary rounded-lg" />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -6,9 +6,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(
-  value: number,
+  value: number | null,
   currency: string = "zar"
 ): string {
+  if (value == null) return "N/A";
   const currencyMap: Record<string, string> = {
     zar: "ZAR",
     usd: "USD",
@@ -31,10 +32,12 @@ export function formatCurrency(
   }).format(value);
 }
 
-export function formatCompact(value: number): string {
+export function formatCompact(value: number | null): string {
+  if (value == null) return "N/A";
   return new Intl.NumberFormat("en", { notation: "compact" }).format(value);
 }
 
-export function formatPercentage(value: number): string {
+export function formatPercentage(value: number | null): string {
+  if (value == null) return "N/A";
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }

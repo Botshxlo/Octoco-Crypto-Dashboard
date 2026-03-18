@@ -40,7 +40,7 @@ export default function CoinRow({ coin, currency }: CoinRowProps) {
       <td className="py-4 px-3 text-right text-sm">
         <span
           className={
-            coin.price_change_percentage_24h >= 0
+            (coin.price_change_percentage_24h ?? 0) >= 0
               ? "text-positive"
               : "text-negative"
           }
