@@ -13,9 +13,9 @@ const PER_PAGE = 100;
 export default function Dashboard() {
   const currency = useAppSelector((state) => state.currency.selected);
   const [extraCoins, setExtraCoins] = useState<CoinMarket[]>([]);
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const pageRef = useRef(1);
+  const loadingRef = useRef(false);
   const prevCurrency = useRef(currency);
 
   // Page 1: stable query with polling — never disrupted
@@ -31,21 +31,22 @@ export default function Dashboard() {
   useEffect(() => {
     if (prevCurrency.current !== currency) {
       setExtraCoins([]);
-      setPage(1);
+      pageRef.current = 1;
       setHasMore(true);
       prevCurrency.current = currency;
     }
   }, [currency]);
 
+  // Stable callback — uses refs so identity never changes
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingRef.current) return;
+    loadingRef.current = true;
 
-    const nextPage = page + 1;
-    setLoadingMore(true);
+    const nextPage = pageRef.current + 1;
 
     try {
       const result = await fetchMore({
-        currency,
+        currency: prevCurrency.current,
         page: nextPage,
         perPage: PER_PAGE,
       }).unwrap();
@@ -60,13 +61,13 @@ export default function Dashboard() {
         return [...prev, ...newCoins];
       });
 
-      setPage(nextPage);
+      pageRef.current = nextPage;
     } catch {
       setHasMore(false);
     } finally {
-      setLoadingMore(false);
+      loadingRef.current = false;
     }
-  }, [loadingMore, hasMore, page, currency, fetchMore]);
+  }, [fetchMore]);
 
   const sentinelRef = useInfiniteScroll(loadMore, hasMore);
 
@@ -108,13 +109,7 @@ export default function Dashboard() {
       <CoinTable coins={allCoins} currency={currency} />
       {hasMore && (
         <div ref={sentinelRef} className="py-8 text-center">
-          {loadingMore && (
-            <div className="animate-pulse space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-16 bg-secondary rounded-lg" />
-              ))}
-            </div>
-          )}
+          <div className="text-sm text-muted-foreground">Loading more...</div>
         </div>
       )}
     </div>
