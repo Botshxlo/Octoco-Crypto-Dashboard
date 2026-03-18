@@ -1,7 +1,5 @@
 import { useState } from "react";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -136,8 +134,8 @@ export default function PriceChart({ coinId, currency }: PriceChartProps) {
                 borderRadius: "8px",
                 fontSize: "12px",
               }}
-              labelFormatter={formatTime}
-              formatter={(value: number) => [
+              labelFormatter={(label: any) => formatTime(Number(label))}
+              formatter={(value: any) => [
                 dataset === "prices"
                   ? formatCurrency(value, currency)
                   : Intl.NumberFormat("en", { notation: "compact" }).format(value),
