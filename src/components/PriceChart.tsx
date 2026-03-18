@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import {
   XAxis,
   YAxis,
@@ -6,157 +6,140 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  CartesianGrid,
 } from "recharts";
 import { useGetMarketChartQuery } from "@/store/api/coingecko";
 import { formatCurrency } from "@/lib/utils";
-import { cn } from "@/lib/utils";
 import type { ChartDays } from "@/types";
 
 interface PriceChartProps {
   coinId: string;
   currency: string;
+  days: ChartDays;
+  dataset: "prices" | "market_caps" | "total_volumes";
 }
 
-const granularityOptions: { value: ChartDays; label: string }[] = [
-  { value: "1", label: "24h" },
-  { value: "7", label: "7d" },
-  { value: "30", label: "30d" },
-  { value: "365", label: "1y" },
-];
-
-type Dataset = "prices" | "market_caps" | "total_volumes";
-
-const datasetOptions: { value: Dataset; label: string }[] = [
-  { value: "prices", label: "Price" },
-  { value: "market_caps", label: "Market Cap" },
-  { value: "total_volumes", label: "Volume" },
-];
-
-export default function PriceChart({ coinId, currency }: PriceChartProps) {
-  const [days, setDays] = useState<ChartDays>("7");
-  const [dataset, setDataset] = useState<Dataset>("prices");
-
+export default function PriceChart({ coinId, currency, days, dataset }: PriceChartProps) {
   const { data, isLoading } = useGetMarketChartQuery({
     id: coinId,
     currency,
     days,
   });
 
-  const chartData =
-    data?.[dataset]?.map(([timestamp, value]) => ({
-      time: timestamp,
-      value,
-    })) ?? [];
+  const chartData = useMemo(
+    () =>
+      data?.[dataset]?.map(([timestamp, value]) => ({
+        date: timestamp,
+        value,
+      })) ?? [],
+    [data, dataset]
+  );
 
-  const formatTime = (timestamp: number) => {
+  const isPositive = useMemo(() => {
+    if (chartData.length < 2) return true;
+    return chartData[chartData.length - 1].value >= chartData[0].value;
+  }, [chartData]);
+
+  const gradientColor = isPositive ? "#10b981" : "#ef4444";
+  const strokeColor = isPositive ? "#10b981" : "#ef4444";
+
+  const formatXAxis = (timestamp: number) => {
     const date = new Date(timestamp);
-    if (days === "1") return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (days === "1")
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     if (days === "7") return date.toLocaleDateString([], { weekday: "short" });
     return date.toLocaleDateString([], { month: "short", day: "numeric" });
   };
 
-  return (
-    <div className="bg-secondary/30 rounded-xl p-6 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {/* Dataset Toggle */}
-        <div className="flex gap-1 bg-secondary rounded-lg p-1">
-          {datasetOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setDataset(opt.value)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                dataset === opt.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+  const formatYAxis = (value: number) => {
+    if (value >= 1e9) return `${(value / 1e9).toFixed(0)}B`;
+    if (value >= 1e6) return `${(value / 1e6).toFixed(0)}M`;
+    if (value >= 1e3) return `${(value / 1e3).toFixed(0)}K`;
+    return value.toFixed(0);
+  };
 
-        {/* Granularity Toggle */}
-        <div className="flex gap-1 bg-secondary rounded-lg p-1">
-          {granularityOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setDays(opt.value)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                days === opt.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+  if (isLoading) {
+    return (
+      <div className="flex h-[320px] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="text-sm text-muted-foreground">Loading chart data...</span>
         </div>
       </div>
+    );
+  }
 
-      {isLoading ? (
-        <div className="h-64 animate-pulse bg-secondary rounded-lg" />
-      ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="time"
-              tickFormatter={formatTime}
-              stroke="#71717a"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              domain={["auto", "auto"]}
-              stroke="#71717a"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v) =>
-                dataset === "prices"
-                  ? formatCurrency(v, currency)
-                  : Intl.NumberFormat("en", { notation: "compact" }).format(v)
-              }
-              width={80}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#18181b",
-                border: "1px solid #27272a",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-              labelFormatter={(label: any) => formatTime(Number(label))}
-              formatter={(value: any) => [
-                dataset === "prices"
-                  ? formatCurrency(value, currency)
-                  : Intl.NumberFormat("en", { notation: "compact" }).format(value),
-                dataset === "prices"
-                  ? "Price"
-                  : dataset === "market_caps"
-                    ? "Market Cap"
-                    : "Volume",
-              ]}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="#8b5cf6"
-              strokeWidth={2}
-              fill="url(#chartGradient)"
-              dot={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      )}
-    </div>
+  return (
+    <ResponsiveContainer width="100%" height={320}>
+      <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={gradientColor} stopOpacity={0.25} />
+            <stop offset="50%" stopColor={gradientColor} stopOpacity={0.1} />
+            <stop offset="100%" stopColor={gradientColor} stopOpacity={0} />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={formatXAxis}
+          stroke="#52525b"
+          fontSize={11}
+          tickLine={false}
+          axisLine={false}
+          minTickGap={60}
+          dy={10}
+        />
+        <YAxis
+          tickFormatter={formatYAxis}
+          stroke="#52525b"
+          fontSize={11}
+          tickLine={false}
+          axisLine={false}
+          width={65}
+          domain={["auto", "auto"]}
+          dx={-5}
+        />
+        <Tooltip
+          content={({ active, payload, label }) => {
+            if (!active || !payload?.length || !label) return null;
+            return (
+              <div className="rounded-xl border border-border/50 bg-card/95 px-4 py-3 shadow-xl backdrop-blur-sm">
+                <p className="mb-1 text-xs text-muted-foreground">
+                  {new Date(label as number).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+                <p className="font-mono text-lg font-bold text-foreground">
+                  {dataset === "prices"
+                    ? formatCurrency(payload[0].value as number, currency)
+                    : Intl.NumberFormat("en", { notation: "compact" }).format(
+                        payload[0].value as number
+                      )}
+                </p>
+              </div>
+            );
+          }}
+        />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={strokeColor}
+          strokeWidth={2.5}
+          fill="url(#colorValue)"
+          filter="url(#glow)"
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
