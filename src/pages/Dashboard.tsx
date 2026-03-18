@@ -1,11 +1,45 @@
 import { useState, useEffect, useRef } from "react";
+import { TrendingUp, BarChart3, Activity, Loader2 } from "lucide-react";
 import { useGetMarketsQuery } from "@/store/api/coingecko";
 import { useAppSelector } from "@/store/hooks";
+import { formatCurrency } from "@/lib/utils";
 import CoinTable from "@/components/CoinTable";
+import CoinTableSkeleton from "@/components/CoinTableSkeleton";
 import type { CoinMarket } from "@/types";
 
 const PER_PAGE = 100;
 const API_BASE = "https://api.coingecko.com/api/v3";
+
+function MarketStatCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="relative">
+        <div className="mb-3 inline-flex rounded-xl bg-secondary p-2.5">
+          <Icon className="size-5 text-primary" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function formatLargeNumber(num: number, currency: string) {
+  const symbol = currency === "btc" ? "₿" : currency === "eur" ? "€" : currency === "usd" ? "$" : "R";
+  if (num >= 1e12) return `${symbol}${(num / 1e12).toFixed(2)}T`;
+  if (num >= 1e9) return `${symbol}${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `${symbol}${(num / 1e6).toFixed(2)}M`;
+  return formatCurrency(num, currency);
+}
 
 export default function Dashboard() {
   const currency = useAppSelector((state) => state.currency.selected);
@@ -14,20 +48,17 @@ export default function Dashboard() {
   const [loadingMore, setLoadingMore] = useState(false);
   const pageRef = useRef(1);
 
-  // Page 1 only — stable RTK Query with polling
   const { data: firstPage, isLoading, error } = useGetMarketsQuery(
     { currency, page: 1, perPage: PER_PAGE },
     { pollingInterval: 60000 }
   );
 
-  // Reset extra pages when currency changes
   useEffect(() => {
     setExtraCoins([]);
     pageRef.current = 1;
     setHasMore(true);
   }, [currency]);
 
-  // Scroll-based infinite loading
   useEffect(() => {
     if (!hasMore) return;
 
@@ -82,7 +113,6 @@ export default function Dashboard() {
     }
   }
 
-  // Deduplicate: firstPage wins, extra coins fill in the rest
   const allCoins = (() => {
     const first = firstPage ?? [];
     const seen = new Set(first.map((c) => c.id));
@@ -94,25 +124,19 @@ export default function Dashboard() {
     return [...first, ...deduped];
   })();
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Top Cryptocurrencies</h1>
-        <div className="animate-pulse space-y-3">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="h-16 bg-secondary rounded-lg" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const totalMarketCap = allCoins.reduce((acc, c) => acc + (c.market_cap || 0), 0);
+  const totalVolume = allCoins.reduce((acc, c) => acc + (c.total_volume || 0), 0);
+  const avgChange =
+    allCoins.length > 0
+      ? allCoins.reduce((acc, c) => acc + (c.price_change_percentage_24h || 0), 0) / allCoins.length
+      : 0;
 
   if (error && allCoins.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-negative">Failed to load market data.</p>
-        <p className="text-muted-foreground text-sm mt-2">
-          CoinGecko API may be rate-limited. Please try again in a moment.
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/5 p-12 text-center">
+        <h2 className="mb-2 text-xl font-semibold text-foreground">Unable to Load Data</h2>
+        <p className="text-muted-foreground">
+          Failed to load cryptocurrency data. Please try again later.
         </p>
       </div>
     );
@@ -120,24 +144,74 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Top Cryptocurrencies</h1>
-        <span className="text-sm text-muted-foreground">
-          {allCoins.length} coins
-        </span>
-      </div>
-      <CoinTable coins={allCoins} currency={currency} />
-      {hasMore && (
-        <div className="py-8 text-center">
-          {loadingMore && (
-            <div className="animate-pulse space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-16 bg-secondary rounded-lg" />
-              ))}
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Top Cryptocurrencies
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Track the latest prices and market trends in real-time
+            </p>
+          </div>
+          {allCoins.length > 0 && (
+            <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2">
+              <div className="size-2 animate-pulse rounded-full bg-positive" />
+              <span className="text-sm font-medium text-muted-foreground">
+                {allCoins.length} coins loaded
+              </span>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Market Overview Cards */}
+      {!isLoading && allCoins.length > 0 && (
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <MarketStatCard
+            icon={TrendingUp}
+            label="Total Market Cap"
+            value={formatLargeNumber(totalMarketCap, currency)}
+          />
+          <MarketStatCard
+            icon={BarChart3}
+            label="24h Trading Volume"
+            value={formatLargeNumber(totalVolume, currency)}
+          />
+          <MarketStatCard
+            icon={Activity}
+            label="Avg. 24h Change"
+            value={`${avgChange >= 0 ? "+" : ""}${avgChange.toFixed(2)}%`}
+          />
+        </div>
       )}
+
+      {/* Main Table */}
+      <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-xl shadow-black/5">
+        {isLoading ? (
+          <CoinTableSkeleton rows={10} />
+        ) : (
+          <CoinTable coins={allCoins} currency={currency} />
+        )}
+      </div>
+
+      {/* Load More Indicator */}
+      <div className="flex justify-center py-10">
+        {loadingMore && (
+          <div className="flex items-center gap-3 rounded-full bg-secondary px-5 py-2.5">
+            <Loader2 className="size-4 animate-spin text-primary" />
+            <span className="text-sm font-medium text-muted-foreground">Loading more coins...</span>
+          </div>
+        )}
+        {!hasMore && allCoins.length > 0 && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="h-px w-12 bg-border" />
+            <span className="text-sm">End of list</span>
+            <div className="h-px w-12 bg-border" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
