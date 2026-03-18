@@ -58,7 +58,6 @@ export const coingeckoApi = createApi({
 
 export const {
   useGetMarketsQuery,
-  useLazyGetMarketsQuery,
   useGetCoinDetailQuery,
   useGetMarketChartQuery,
 } = coingeckoApi;
