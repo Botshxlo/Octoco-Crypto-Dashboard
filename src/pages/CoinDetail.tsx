@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useGetCoinDetailQuery } from "@/store/api/coingecko";
 import { useAppSelector } from "@/store/hooks";
-import { formatCurrency, formatCompact, cn } from "@/lib/utils";
+import { formatCurrency, formatCurrencyCompact, formatCompact, cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import PriceChart from "@/components/PriceChart";
@@ -264,22 +264,22 @@ export default function CoinDetail() {
       <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         <StatCard
           label="Market Cap"
-          value={formatCurrency(md.market_cap[currency] ?? 0, currency)}
+          value={formatCurrencyCompact(md.market_cap[currency] ?? 0, currency)}
           icon={<BarChart3 className="size-4" />}
         />
         <StatCard
           label="24h Volume"
-          value={formatCurrency(md.total_volume[currency] ?? 0, currency)}
+          value={formatCurrencyCompact(md.total_volume[currency] ?? 0, currency)}
           icon={<Activity className="size-4" />}
         />
         <StatCard
           label="24h High"
-          value={formatCurrency(md.high_24h[currency] ?? 0, currency)}
+          value={formatCurrencyCompact(md.high_24h[currency] ?? 0, currency)}
           icon={<TrendingUp className="size-4" />}
         />
         <StatCard
           label="24h Low"
-          value={formatCurrency(md.low_24h[currency] ?? 0, currency)}
+          value={formatCurrencyCompact(md.low_24h[currency] ?? 0, currency)}
           icon={<TrendingDown className="size-4" />}
         />
         <StatCard
@@ -300,11 +300,11 @@ export default function CoinDetail() {
         />
         <StatCard
           label="All-Time High"
-          value={formatCurrency(md.ath[currency] ?? 0, currency)}
+          value={formatCurrencyCompact(md.ath[currency] ?? 0, currency)}
         />
         <StatCard
           label="All-Time Low"
-          value={formatCurrency(md.atl[currency] ?? 0, currency)}
+          value={formatCurrencyCompact(md.atl[currency] ?? 0, currency)}
         />
       </div>
 

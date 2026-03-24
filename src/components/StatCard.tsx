@@ -28,7 +28,7 @@ export default function StatCard({ label, value, icon, highlight }: StatCardProp
             </div>
           )}
         </div>
-        <p className="mt-2 font-mono text-lg font-bold tracking-tight text-foreground">
+        <p className="mt-2 truncate font-mono text-lg font-bold tracking-tight text-foreground">
           {value}
         </p>
       </div>
