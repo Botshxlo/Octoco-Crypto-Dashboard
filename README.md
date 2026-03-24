@@ -56,31 +56,58 @@ npm run preview
 ```
 src/
 ├── components/
-│   ├── CoinRow.tsx          # Single coin table row
-│   ├── CoinTable.tsx        # Coins data table
-│   ├── CurrencySelector.tsx # ZAR/USD/EUR/BTC toggle
-│   ├── Header.tsx           # App header with nav
-│   └── PriceChart.tsx       # Historical price area chart
+│   ├── ui/                    # shadcn/ui primitives (Tabs, Skeleton)
+│   ├── CoinRow.tsx            # Single coin row with hover effects
+│   ├── CoinTable.tsx          # Flex-based coin list with header
+│   ├── CoinTableSkeleton.tsx  # Staggered loading skeleton
+│   ├── CurrencySelector.tsx   # ZAR/USD/EUR/BTC toggle
+│   ├── Header.tsx             # Glass header with nav and logo
+│   ├── PriceChart.tsx         # Trend-colored area chart
+│   └── StatCard.tsx           # Reusable stat display card
 ├── hooks/
-│   ├── useInfiniteScroll.ts # Intersection Observer hook
-│   └── useMetaMask.ts       # MetaMask wallet hook
+│   └── useMetaMask.ts         # MetaMask wallet connection hook
 ├── lib/
-│   └── utils.ts             # Formatting helpers (currency, %, compact)
+│   └── utils.ts               # Formatting helpers (currency, %, compact)
 ├── pages/
-│   ├── Dashboard.tsx        # Landing page with coin list
-│   ├── CoinDetail.tsx       # Coin detail with charts and stats
-│   └── Wallet.tsx           # MetaMask wallet page
+│   ├── Dashboard.tsx          # Landing page with market stats + coin list
+│   ├── CoinDetail.tsx         # Coin detail with tabbed charts and stats
+│   └── Wallet.tsx             # MetaMask wallet page
 ├── store/
-│   ├── api/coingecko.ts     # RTK Query API slice
-│   ├── currencySlice.ts     # Currency state
-│   ├── hooks.ts             # Typed Redux hooks
-│   └── store.ts             # Redux store config
+│   ├── api/coingecko.ts       # RTK Query API slice with retry logic
+│   ├── currencySlice.ts       # Currency state
+│   ├── hooks.ts               # Typed Redux hooks
+│   └── store.ts               # Redux store config
 ├── types/
-│   └── index.ts             # TypeScript interfaces
+│   └── index.ts               # TypeScript interfaces
 ├── App.tsx
 ├── main.tsx
-└── index.css
+└── index.css                  # Theme variables and utility classes
 ```
+## Architecture Decisions
+
+### RTK Query over plain fetch/SWR
+
+The assignment calls for Redux caching, so RTK Query was the natural pick. It gives us automatic cache management, polling (`pollingInterval: 60000` for live price updates), and request deduplication, all wired into the Redux store. The coin list, detail pages, and chart data share one cache layer with configurable TTL (`keepUnusedDataFor: 120`), so we're not making redundant API calls when users navigate between pages.
+
+### Hybrid pagination strategy
+
+Page 1 uses RTK Query with polling so prices stay fresh. Pages 2+ use plain `fetch()` instead. I tried RTK Query for all pages initially, but changing the page argument invalidated the cache and the UI would flash empty during refetches. Not great. Keeping page 1 on RTK Query and appending extra pages via local state gives us live updates for the top 100 coins and stable infinite scroll for the rest.
+
+### Null-safe formatting
+
+CoinGecko returns `null` for fields like `price_change_percentage_24h` on lesser-known coins (usually page 2+). All formatting utilities (`formatCurrency`, `formatPercentage`, `formatCompact`) accept `number | null` and return `"N/A"` for nulls. Without this, infinite scroll would crash on missing data.
+
+### Rate limit handling
+
+CoinGecko's free tier is heavily rate-limited (5-15 req/min). The RTK Query base query calls `retry.fail()` on 429 responses to bail immediately instead of retrying but retrying just makes throttling worse. Combined with a 2-minute cache TTL, the app stays functional even when rate-limited. A Demo API key can optionally go in `VITE_COINGECKO_API_KEY` for higher limits.
+
+### Flex-based table layout
+
+The coin list uses `div` + flexbox instead of a `<table>`. Responsive column hiding is simpler (`hidden md:block` on individual cells), hover effects work with absolute-positioned overlays, and we avoid table layout's rigidity for the sparkline and action columns.
+
+### Chart trend coloring
+
+The price chart colors green or red based on whether the last data point is above or below the first. Gives immediate visual feedback on trend direction without extra API calls.
 
 ## API
 
