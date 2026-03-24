@@ -2,6 +2,8 @@
 
 A React + TypeScript application that displays live cryptocurrency prices using the CoinGecko API.
 
+**Live Demo:** [octoco-crypto-dashboard.vercel.app](https://octoco-crypto-dashboard.vercel.app)
+
 ## Tech Stack
 
 - **Framework:** React 18 + TypeScript
@@ -108,6 +110,10 @@ The coin list uses `div` + flexbox instead of a `<table>`. Responsive column hid
 ### Chart trend coloring
 
 The price chart colors green or red based on whether the last data point is above or below the first. Gives immediate visual feedback on trend direction without extra API calls.
+
+## Deployment
+
+Deployed to [Vercel](https://vercel.com) with the CoinGecko API key set as an environment variable (`VITE_COINGECKO_API_KEY`).
 
 ## API
 
