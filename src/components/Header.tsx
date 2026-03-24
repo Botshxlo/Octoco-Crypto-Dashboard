@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { TrendingUp, Wallet, Menu, X } from "lucide-react";
-import CurrencySelector from "./CurrencySelector";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -53,7 +52,6 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3">
-          <CurrencySelector className="hidden sm:flex" />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden"
@@ -87,7 +85,6 @@ export default function Header() {
                 );
               })}
             </nav>
-            <CurrencySelector className="flex" />
           </div>
         </div>
       )}

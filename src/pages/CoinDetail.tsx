@@ -21,6 +21,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import PriceChart from "@/components/PriceChart";
 import StatCard from "@/components/StatCard";
+import CurrencySelector from "@/components/CurrencySelector";
 import type { ChartDays } from "@/types";
 
 type DataType = "prices" | "market_caps" | "total_volumes";
@@ -142,13 +143,16 @@ export default function CoinDetail() {
   return (
     <div>
       {/* Back Navigation */}
-      <Link
-        to="/"
-        className="group mb-8 inline-flex items-center gap-2 rounded-full bg-secondary/50 px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
-      >
-        <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-        Back to dashboard
-      </Link>
+      <div className="mb-8 flex items-center justify-between">
+        <Link
+          to="/"
+          className="group inline-flex items-center gap-2 rounded-full bg-secondary/50 px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+        >
+          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+          Back to dashboard
+        </Link>
+        <CurrencySelector />
+      </div>
 
       {/* Header */}
       <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-center">

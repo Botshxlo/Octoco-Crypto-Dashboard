@@ -5,6 +5,7 @@ import { useAppSelector } from "@/store/hooks";
 import { formatCurrency } from "@/lib/utils";
 import CoinTable from "@/components/CoinTable";
 import CoinTableSkeleton from "@/components/CoinTableSkeleton";
+import CurrencySelector from "@/components/CurrencySelector";
 import type { CoinMarket } from "@/types";
 
 const PER_PAGE = 100;
@@ -155,14 +156,17 @@ export default function Dashboard() {
               Track the latest prices and market trends in real-time
             </p>
           </div>
-          {allCoins.length > 0 && (
-            <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2">
-              <div className="size-2 animate-pulse rounded-full bg-positive" />
-              <span className="text-sm font-medium text-muted-foreground">
-                {allCoins.length} coins loaded
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {allCoins.length > 0 && (
+              <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2">
+                <div className="size-2 animate-pulse rounded-full bg-positive" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {allCoins.length} coins loaded
+                </span>
+              </div>
+            )}
+            <CurrencySelector />
+          </div>
         </div>
       </div>
 
